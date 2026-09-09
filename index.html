@@ -31,10 +31,20 @@
     <h1>LeadPilot Remote</h1>
     <p>Secure access to Messages, leads and settings on your main PC.</p>
     <div class="status" id="status"><span class="dot"></span><span>Checking main PC…</span></div>
-    <a id="open" href="#" aria-disabled="true">Open LeadPilot</a>
+    <a id="open" href="#" aria-disabled="true">Continue to sign-in</a>
     <small>Your main PC and internet connection must remain on. A password is required.</small>
   </main>
   <script>
+    // This page is a forwarder, not a stop. The tunnel's hostname changes every
+    // time cloudflared restarts, so this address is the only stable one there is
+    // - but reading a name off a card and pressing a button is two steps that
+    // exist for the machine's benefit, not the reader's. So: as soon as the
+    // current address is known, go there, and go straight to the sign-in form
+    // rather than to , which only answers with a redirect to it anyway.
+    //
+    // The button stays for the cases a redirect must not cover: the moment
+    // before the address is known, and a main PC that is reconnecting - sending
+    // someone to a tunnel that is not answering is worse than telling them.
     const status = document.getElementById('status');
     const statusText = status.lastElementChild;
     const open = document.getElementById('open');
@@ -50,12 +60,16 @@
         if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i.test(url)) {
           throw new Error('invalid remote address');
         }
-        target = url;
-        open.href = url;
+        target = url.replace(/\/?$/, '/') + 'login';
+        open.href = target;
         open.rel = 'noreferrer noopener';
         open.removeAttribute('aria-disabled');
-        status.className = 'status ' + (state.online === false ? 'offline' : 'online');
-        statusText.textContent = state.online === false ? 'Main PC is reconnecting' : 'Main PC is online';
+        const offline = state.online === false;
+        status.className = 'status ' + (offline ? 'offline' : 'online');
+        statusText.textContent = offline ? 'Main PC is reconnecting' : 'Taking you to sign-in…';
+        // replace(), not href: the forwarder should not sit in history, or Back
+        // from the sign-in page lands here and immediately forwards again.
+        if (!offline) location.replace(target);
       })
       .catch(() => {
         status.className = 'status offline';

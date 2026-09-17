@@ -1,132 +1,176 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="referrer" content="no-referrer">
-  <title>LeadPilot Remote</title>
-  <style>
-    :root{color-scheme:dark;--bg:#090e17;--card:#111a28;--line:#243044;
-      --text:#eef2f7;--muted:#94a3b8;--blue:#2563eb;--green:#22c55e;
-      --amber:#f59e0b;--red:#f87171}
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;
-      background:radial-gradient(circle at 50% 0,#13213a 0,var(--bg) 58%);
-      color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-    main{width:min(100%,420px);padding:30px;border:1px solid var(--line);
-      border-radius:18px;background:rgba(17,26,40,.96);
-      box-shadow:0 22px 70px rgba(0,0,0,.35);text-align:center}
-    .logo{width:52px;height:52px;margin:0 auto 16px;display:grid;place-items:center;
-      border-radius:15px;background:linear-gradient(135deg,#2563eb,#7c3aed);font-size:24px}
-    h1{margin:0;font-size:23px;letter-spacing:-.02em}
-    p{margin:8px 0 22px;color:var(--muted)}
-    .status{display:flex;align-items:center;justify-content:center;gap:8px;
-      margin-bottom:16px;color:var(--muted);font-size:13px}
-    .dot{width:8px;height:8px;border-radius:50%;background:#64748b;flex:none}
-    .status.main .dot{background:var(--green);box-shadow:0 0 0 4px rgba(34,197,94,.12)}
-    .status.backup .dot{background:var(--amber);box-shadow:0 0 0 4px rgba(245,158,11,.12)}
-    .status.offline .dot{background:var(--red)}
-    a.go{display:block;padding:12px 16px;border-radius:10px;background:var(--blue);
-      color:#fff;text-decoration:none;font-weight:650}
-    a.go[aria-disabled="true"]{opacity:.55;cursor:wait}
-    small{display:block;margin-top:16px;color:#64748b;font-size:11.5px}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>LeadPilot</title>
+<style>
+/* Same tokens as the two sign-in pages. Three repositories, no shared
+   stylesheet, kept identical by hand — this page and the one it hands you to
+   have to look like the same place or the handover reads as a redirect to
+   somewhere else. Two blues on purpose: white on #3B82F6 is 3.68:1 and fails on
+   a button, so filled actions use #2563EB (5.17:1) and the lighter one is for
+   accents and the focus ring. */
+:root{
+  --bg:#0B0F17;--surface:#192436;--line:#243047;
+  --tx:#E8EDF5;--tx-dim:#94A3B8;--tx-faint:#7A89A2;
+  --p:#2563EB;--p-lit:#3B82F6;--p-soft:rgba(59,130,246,.12);
+  --ok:#34D399;--warn:#FBBF24;--bad:#F87171;
+  --r:14px;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;
+  padding:24px;background:radial-gradient(1200px 600px at 50% -10%,#16223A 0,var(--bg) 60%);
+  color:var(--tx);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.card{width:min(100%,380px);padding:32px 28px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);text-align:center}
+.mark{width:44px;height:44px;margin:0 auto 16px;display:grid;place-items:center;
+  border-radius:12px;background:linear-gradient(140deg,#3B82F6,#7C3AED);
+  font-weight:700;font-size:15px;letter-spacing:.02em;color:#fff}
+h1{margin:0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.sub{margin:8px 0 0;font-size:13.5px;line-height:1.5;color:var(--tx-dim)}
+
+/* State is carried by the words; the dot only repeats it for people who read
+   shape and colour faster than a sentence. */
+.status{display:flex;align-items:center;justify-content:center;gap:9px;
+  margin:24px 0 0;padding:11px 14px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);
+  font-size:13px;color:var(--tx-dim);min-height:44px;text-align:left}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--tx-faint);flex:none}
+.status.checking .dot{background:var(--p-lit);animation:pulse 1.4s ease-in-out infinite}
+.status.main .dot{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.14)}
+.status.backup .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.14)}
+.status.offline .dot{background:var(--bad);box-shadow:0 0 0 4px rgba(248,113,113,.14)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.go{display:grid;place-items:center;width:100%;height:48px;margin:12px 0 0;
+  border-radius:10px;background:var(--p);color:#fff;text-decoration:none;
+  font-weight:600;font-size:15px;transition:transform .12s ease,filter .12s ease}
+.go:hover{filter:brightness(1.08)}
+.go:active{transform:scale(.985)}
+.go:focus-visible{outline:2px solid var(--p-lit);outline-offset:2px}
+.go[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.foot{margin:20px 0 0;font-size:11.5px;line-height:1.5;color:var(--tx-faint)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
 </head>
 <body>
-  <main>
-    <div class="logo">&#128640;</div>
-    <h1>LeadPilot Remote</h1>
-    <p>One address. It finds whichever machine is running.</p>
-    <div class="status" id="status"><span class="dot"></span><span id="statusText">Looking for your machines&hellip;</span></div>
-    <a class="go" id="open" href="#" aria-disabled="true">Continue to sign-in</a>
-    <small id="note">The password is the same on both.</small>
-  </main>
-  <script>
-  // A forwarder, not a destination. The tunnel hostnames change every time
-  // cloudflared restarts, so this address is the only stable one there is.
-  //
-  // There are two machines now: the PC does the work, and the VPS collects leads
-  // while the PC is off. Whichever is up is where you want to go — and that is a
-  // question this page cannot answer from the published files alone. The PC's
-  // watchdog writes `online:false` when it shuts down cleanly, but a machine that
-  // loses power, sleeps, or crashes never gets to write anything, so the file goes
-  // on claiming the PC is up with an address that is no longer answering.
-  //
-  // So both are asked directly. A dead quick tunnel is NOT a dead hostname: the
-  // name still resolves and Cloudflare still replies, with its own error page. Only
-  // LeadPilot answers /ping with LeadPilot's own JSON, which is why that endpoint
-  // exists and why it is open and CORS-enabled — it is the one question this page
-  // is able to ask.
-  //
-  // The PC wins whenever both answer: it has the full app, and the VPS has only the
-  // lead collector.
-  const statusEl = document.getElementById('status');
-  const statusText = document.getElementById('statusText');
-  const open = document.getElementById('open');
-  const note = document.getElementById('note');
-  const CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
-  const PROBE_MS = 6000;
+<main class="card">
+  <div class="mark" aria-hidden="true">LP</div>
+  <h1>LeadPilot</h1>
+  <p class="sub">One address. It opens whichever machine is running.</p>
 
-  function readState(file) {
-    return fetch(file + '?t=' + Date.now(), {cache: 'no-store'})
-      .then(r => (r.ok ? r.json() : null))
-      .then(s => {
-        const url = String((s || {}).url || '').replace(/\/?$/, '/');
-        return CLOUDFLARE.test(url) ? url : '';
-      })
-      .catch(() => '');
-  }
+  <div class="status checking" id="status" role="status" aria-live="polite">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="statusText">Finding your machines&hellip;</span>
+  </div>
 
-  function probe(base, pingPath) {
-    if (!base) return Promise.resolve(false);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), PROBE_MS);
-    return fetch(base + pingPath + '?t=' + Date.now(),
-                 {cache: 'no-store', signal: ctrl.signal})
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => !!(j && j.app === 'leadpilot'))
-      .catch(() => false)
-      .finally(() => clearTimeout(timer));
-  }
+  <a class="go" id="go" href="#" aria-disabled="true">Checking&hellip;</a>
+  <p class="foot" id="foot">Same password on either one.</p>
+</main>
+<script>
+// Straight through to the sign-in form on whichever machine is actually up.
+//
+// There are two: the PC runs the whole app, and the VPS collects leads while the
+// PC is off. Neither published status file is trusted to say which. The PC writes
+// `online:false` only when it shuts down *cleanly*, so a power cut or a sleep
+// leaves the file claiming it is up at an address that is no longer answering —
+// and a dead quick tunnel is not a dead hostname either: the name still resolves
+// and Cloudflare still replies, with its own error page.
+//
+// So both are asked directly, and the only answer that counts is one only
+// LeadPilot could have written. That is what /ping is for.
+//
+// The PC wins when both answer: it has Messages and the funnel; the VPS has only
+// the lead collector.
+var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
+var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
+var PROBE_MS = 6000;
 
-  function send(base, kind) {
-    const target = base + 'login';
-    open.href = target;
-    open.rel = 'noreferrer noopener';
-    open.removeAttribute('aria-disabled');
-    if (kind === 'main') {
-      statusEl.className = 'status main';
-      statusText.textContent = 'Main PC is online';
-      note.textContent = 'Full app: Messages, leads and settings.';
-    } else {
-      statusEl.className = 'status backup';
-      statusText.textContent = 'Main PC is off - using the backup server';
-      note.textContent = 'Backup server: leads and screenshots only. Same password.';
-      open.textContent = 'Continue to backup server';
-    }
-    setTimeout(() => { location.replace(target); }, kind === 'main' ? 350 : 1400);
-  }
+var statusEl = document.getElementById('status');
+var statusText = document.getElementById('statusText');
+var go = document.getElementById('go');
+var foot = document.getElementById('foot');
 
-  Promise.all([readState('leadpilot-url.json'), readState('vps-url.json')])
-    .then(([localUrl, vpsUrl]) => {
-      statusText.textContent = 'Checking which machine is up\u2026';
-      return Promise.all([
-        probe(localUrl, 'api/ping'),
-        probe(vpsUrl, 'ping'),
-      ]).then(([localUp, vpsUp]) => {
-        if (localUp) return send(localUrl, 'main');
-        if (vpsUp)   return send(vpsUrl, 'backup');
-        statusEl.className = 'status offline';
-        statusText.textContent = 'Neither machine is reachable';
-        note.textContent = 'Turn the PC on, or check the VPS. Retrying every 15s.';
-        setTimeout(() => location.reload(), 15000);
-      });
+function readState(file) {
+  return fetch(BASE + file + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (s) {
+      var url = String((s || {}).url || '').replace(/\/?$/, '/');
+      return CLOUDFLARE.test(url) ? url : '';
     })
-    .catch(() => {
-      statusEl.className = 'status offline';
-      statusText.textContent = 'Could not read the published addresses';
-      setTimeout(() => location.reload(), 15000);
-    });
-  </script>
+    .catch(function () { return ''; });
+}
+
+function probe(base, pingPath) {
+  if (!base) return Promise.resolve(false);
+  var settled = false;
+  return new Promise(function (resolve) {
+    var timer = setTimeout(function () {
+      if (!settled) { settled = true; resolve(false); }
+    }, PROBE_MS);
+    fetch(base + pingPath + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        resolve(!!(j && j.app === 'leadpilot'));
+      })
+      .catch(function () {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        resolve(false);
+      });
+  });
+}
+
+function send(base, kind) {
+  var target = base + 'login';
+  go.href = target;
+  go.rel = 'noreferrer noopener';
+  go.removeAttribute('aria-disabled');
+  if (kind === 'main') {
+    statusEl.className = 'status main';
+    statusText.textContent = 'Main PC is online';
+    go.textContent = 'Open LeadPilot';
+    foot.textContent = 'Messages, leads and settings.';
+  } else {
+    statusEl.className = 'status backup';
+    statusText.textContent = 'Main PC is off — opening the backup';
+    go.textContent = 'Open backup server';
+    foot.textContent = 'Leads and screenshots only. Same password.';
+  }
+  // Long enough to read the line, short enough not to feel like a stop.
+  setTimeout(function () { location.replace(target); }, kind === 'main' ? 450 : 1300);
+}
+
+function nobody() {
+  statusEl.className = 'status offline';
+  statusText.textContent = 'Neither machine is reachable';
+  go.textContent = 'Try again';
+  go.href = location.href;
+  go.removeAttribute('aria-disabled');
+  foot.textContent = 'Turn the PC on, or check the backup server. Retrying in 15s.';
+  setTimeout(function () { location.reload(); }, 15000);
+}
+
+function run() {
+  Promise.all([readState('leadpilot-url.json'), readState('vps-url.json')])
+    .then(function (urls) {
+      statusText.textContent = 'Checking which one is up…';
+      return Promise.all([probe(urls[0], 'api/ping'), probe(urls[1], 'ping')])
+        .then(function (up) {
+          if (up[0]) return send(urls[0], 'main');
+          if (up[1]) return send(urls[1], 'backup');
+          nobody();
+        });
+    })
+    .catch(nobody);
+}
+run();
+</script>
 </body>
 </html>

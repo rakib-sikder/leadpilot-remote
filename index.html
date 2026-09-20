@@ -33,27 +33,35 @@ body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center
 h1{margin:0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
 .sub{margin:8px 0 0;font-size:13.5px;line-height:1.5;color:var(--tx-dim)}
 
-/* State is carried by the words; the dot only repeats it for people who read
-   shape and colour faster than a sentence. */
-.status{display:flex;align-items:center;justify-content:center;gap:9px;
-  margin:24px 0 0;padding:11px 14px;border-radius:10px;
-  background:rgba(255,255,255,.03);border:1px solid var(--line);
-  font-size:13px;color:var(--tx-dim);min-height:44px;text-align:left}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--tx-faint);flex:none}
-.status.checking .dot{background:var(--p-lit);animation:pulse 1.4s ease-in-out infinite}
-.status.main .dot{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.14)}
-.status.backup .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.14)}
-.status.offline .dot{background:var(--bad);box-shadow:0 0 0 4px rgba(248,113,113,.14)}
+/* One row per machine — label, live status, its own Open button. Independent
+   of each other on purpose: this page used to auto-pick one for you, but the
+   whole point of the redesign is that the person, not a probe race, decides
+   which machine to open. */
+.opts{display:flex;flex-direction:column;gap:10px;margin:24px 0 0}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);text-align:left}
+.opt-info{flex:1;min-width:0}
+.opt-name{font-size:14px;font-weight:600;color:var(--tx)}
+.opt-status{display:flex;align-items:center;gap:7px;margin-top:3px;font-size:12px;color:var(--tx-dim)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--tx-faint);flex:none}
+.opt.checking .dot{background:var(--p-lit);animation:pulse 1.4s ease-in-out infinite}
+.opt.online .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.14)}
+.opt.offline .dot{background:var(--bad);box-shadow:0 0 0 3px rgba(248,113,113,.14)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-.go{display:grid;place-items:center;width:100%;height:48px;margin:12px 0 0;
-  border-radius:10px;background:var(--p);color:#fff;text-decoration:none;
-  font-weight:600;font-size:15px;transition:transform .12s ease,filter .12s ease}
+.go{display:grid;place-items:center;flex:none;min-width:84px;height:38px;padding:0 14px;
+  border-radius:9px;background:var(--p);color:#fff;text-decoration:none;
+  font-weight:600;font-size:13.5px;transition:transform .12s ease,filter .12s ease,background .12s ease}
 .go:hover{filter:brightness(1.08)}
-.go:active{transform:scale(.985)}
+.go:active{transform:scale(.97)}
 .go:focus-visible{outline:2px solid var(--p-lit);outline-offset:2px}
-.go[aria-disabled="true"]{opacity:.45;pointer-events:none}
-.foot{margin:20px 0 0;font-size:11.5px;line-height:1.5;color:var(--tx-faint)}
+.go[aria-disabled="true"]{opacity:1;pointer-events:none;background:rgba(255,255,255,.06);
+  color:var(--tx-faint);border:1px solid var(--line)}
+
+.foot{margin:18px 0 0;font-size:11.5px;line-height:1.5;color:var(--tx-faint)}
+.retry{margin:14px 0 0;display:none;padding:10px 12px;border-radius:9px;font-size:12.5px;
+  color:var(--bad);background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25)}
+.retry.on{display:block}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -61,39 +69,43 @@ h1{margin:0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.02e
 <main class="card">
   <div class="mark" aria-hidden="true">LP</div>
   <h1>LeadPilot</h1>
-  <p class="sub">One address. It opens whichever machine is running.</p>
+  <p class="sub">Choose which machine to open.</p>
 
-  <div class="status checking" id="status" role="status" aria-live="polite">
-    <span class="dot" aria-hidden="true"></span>
-    <span id="statusText">Finding your machines&hellip;</span>
+  <div class="opts">
+    <div class="opt checking" id="optMain">
+      <div class="opt-info">
+        <div class="opt-name">Local (PC)</div>
+        <div class="opt-status"><span class="dot" aria-hidden="true"></span><span id="mainText">Checking&hellip;</span></div>
+      </div>
+      <a class="go" id="goMain" href="#" aria-disabled="true">Checking&hellip;</a>
+    </div>
+    <div class="opt checking" id="optBackup">
+      <div class="opt-info">
+        <div class="opt-name">Backup (VPS)</div>
+        <div class="opt-status"><span class="dot" aria-hidden="true"></span><span id="backupText">Checking&hellip;</span></div>
+      </div>
+      <a class="go" id="goBackup" href="#" aria-disabled="true">Checking&hellip;</a>
+    </div>
   </div>
 
-  <a class="go" id="go" href="#" aria-disabled="true">Checking&hellip;</a>
-  <p class="foot" id="foot">Same password on either one.</p>
+  <p class="foot">Same password on either one. Local has Messages, leads and settings; the backup has leads and screenshots only.</p>
+  <div class="retry" id="retry" role="status" aria-live="polite">Neither machine is reachable right now. Retrying in <span id="retrySec">15</span>s&hellip;</div>
 </main>
 <script>
-// Straight through to the sign-in form on whichever machine is actually up.
-//
-// There are two: the PC runs the whole app, and the VPS collects leads while the
-// PC is off. Neither published status file is trusted to say which. The PC writes
-// `online:false` only when it shuts down *cleanly*, so a power cut or a sleep
-// leaves the file claiming it is up at an address that is no longer answering —
-// and a dead quick tunnel is not a dead hostname either: the name still resolves
-// and Cloudflare still replies, with its own error page.
-//
-// So both are asked directly, and the only answer that counts is one only
-// LeadPilot could have written. That is what /ping is for.
-//
-// The PC wins when both answer: it has Messages and the funnel; the VPS has only
-// the lead collector.
+// Two independent options, not a race to pick one. Each machine is probed on
+// its own and gets its own live status + its own "Open" button — the button is
+// only ever clickable once ITS probe answered, so a person is never sent
+// toward a machine this page already knows is down. See the two sign-in pages
+// and the old auto-forwarding version of this file for why the probes work the
+// way they do below (a dead quick tunnel still resolves and Cloudflare still
+// answers it with its own error page, so only /api/ping or /ping — something
+// only LeadPilot itself would return — counts as "up").
 var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
 var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
 var PROBE_MS = 6000;
+var RETRY_MS = 15000;
 
-var statusEl = document.getElementById('status');
-var statusText = document.getElementById('statusText');
-var go = document.getElementById('go');
-var foot = document.getElementById('foot');
+function el(id) { return document.getElementById(id); }
 
 function readState(file) {
   return fetch(BASE + file + '?t=' + Date.now(), { cache: 'no-store' })
@@ -127,49 +139,54 @@ function probe(base, pingPath) {
   });
 }
 
-function send(base, kind) {
-  var target = base + 'login';
-  go.href = target;
-  go.rel = 'noreferrer noopener';
-  go.removeAttribute('aria-disabled');
-  if (kind === 'main') {
-    statusEl.className = 'status main';
-    statusText.textContent = 'Main PC is online';
-    go.textContent = 'Open LeadPilot';
-    foot.textContent = 'Messages, leads and settings.';
+function setOption(prefix, base, up) {
+  var opt = el('opt' + prefix), text = el(prefix.toLowerCase() + 'Text'), go = el('go' + prefix);
+  if (up && base) {
+    opt.className = 'opt online';
+    text.textContent = 'Online';
+    go.href = base + 'login';
+    go.rel = 'noreferrer noopener';
+    go.textContent = 'Open';
+    go.removeAttribute('aria-disabled');
   } else {
-    statusEl.className = 'status backup';
-    statusText.textContent = 'Main PC is off — opening the backup';
-    go.textContent = 'Open backup server';
-    foot.textContent = 'Leads and screenshots only. Same password.';
+    opt.className = 'opt offline';
+    text.textContent = 'Offline';
+    go.href = '#';
+    go.textContent = 'Offline';
+    go.setAttribute('aria-disabled', 'true');
   }
-  // Long enough to read the line, short enough not to feel like a stop.
-  setTimeout(function () { location.replace(target); }, kind === 'main' ? 450 : 1300);
-}
-
-function nobody() {
-  statusEl.className = 'status offline';
-  statusText.textContent = 'Neither machine is reachable';
-  go.textContent = 'Try again';
-  go.href = location.href;
-  go.removeAttribute('aria-disabled');
-  foot.textContent = 'Turn the PC on, or check the backup server. Retrying in 15s.';
-  setTimeout(function () { location.reload(); }, 15000);
 }
 
 function run() {
+  el('retry').classList.remove('on');
   Promise.all([readState('leadpilot-url.json'), readState('vps-url.json')])
     .then(function (urls) {
-      statusText.textContent = 'Checking which one is up…';
-      return Promise.all([probe(urls[0], 'api/ping'), probe(urls[1], 'ping')])
+      var mainBase = urls[0], backupBase = urls[1];
+      return Promise.all([probe(mainBase, 'api/ping'), probe(backupBase, 'ping')])
         .then(function (up) {
-          if (up[0]) return send(urls[0], 'main');
-          if (up[1]) return send(urls[1], 'backup');
-          nobody();
+          setOption('Main', mainBase, up[0]);
+          setOption('Backup', backupBase, up[1]);
+          if (!up[0] && !up[1]) scheduleRetry();
         });
     })
-    .catch(nobody);
+    .catch(function () {
+      setOption('Main', '', false);
+      setOption('Backup', '', false);
+      scheduleRetry();
+    });
 }
+
+function scheduleRetry() {
+  var sec = RETRY_MS / 1000;
+  el('retrySec').textContent = sec;
+  el('retry').classList.add('on');
+  var timer = setInterval(function () {
+    sec -= 1;
+    el('retrySec').textContent = sec;
+    if (sec <= 0) { clearInterval(timer); run(); }
+  }, 1000);
+}
+
 run();
 </script>
 </body>

@@ -100,7 +100,7 @@ h1{margin:0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.02e
 // way they do below (a dead quick tunnel still resolves and Cloudflare still
 // answers it with its own error page, so only /api/ping or /ping — something
 // only LeadPilot itself would return — counts as "up").
-var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
+var BASE = '';
 var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
 var PROBE_MS = 6000;
 var RETRY_MS = 15000;

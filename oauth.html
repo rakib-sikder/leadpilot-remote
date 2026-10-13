@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<!-- The query string carries a one-time sign-in code; never hand it to anyone as a Referer. -->
+<meta name="referrer" content="no-referrer">
+<title>LeadPilot sign-in</title>
+<!--
+  Google's return address for the dashboard's Gmail sign-in (the Web OAuth client's
+  redirect URI). A dashboard's own address is a quick tunnel that changes on every
+  restart, so Google cannot be told it; this page's address never changes, and it
+  already knows the current ones (vps-url.json / leadpilot-url.json, republished by
+  each machine when its tunnel moves). It forwards ?code&state to <dashboard>/oauth_return
+  and keeps nothing. The state's suffix (".vps" / ".pc") says which dashboard started
+  the sign-in. The code is useless on its own: the exchange needs the PKCE verifier
+  that never left that dashboard, and the client secret.
+-->
+<style>
+:root{--bg:#0B0F17;--surface:#192436;--line:#243047;--tx:#E8EDF5;--tx-dim:#94A3B8;
+  --p:#2563EB;--bad:#F87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--bg);color:var(--tx);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{width:min(420px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+h1{margin:0 0 6px;font-size:18px}
+p{margin:0;color:var(--tx-dim)}
+p.bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Finishing Google sign-in…</h1>
+  <p id="msg">Taking you back to your LeadPilot dashboard.</p>
+</main>
+<script>
+(function () {
+  var q = location.search, p = new URLSearchParams(q), msg = document.getElementById('msg');
+  function fail(text) { msg.className = 'bad'; msg.textContent = text; }
+  if (!p.get('state') || (!p.get('code') && !p.get('error'))) { fail('There is no sign-in to finish here.'); return; }
+  var file = /\.pc$/.test(p.get('state')) ? 'leadpilot-url.json' : 'vps-url.json';
+  fetch(file + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var base = String((d && d.url) || '').replace(/\/+$/, '');
+      if (!/^https:\/\/[a-z0-9.-]+$/i.test(base)) { throw new Error('no address'); }
+      location.replace(base + '/oauth_return' + q);
+    })
+    .catch(function () {
+      fail('Could not find your dashboard right now. Copy this page’s full address and paste it into the dashboard’s sign-in box instead.');
+    });
+})();
+</script>
+</body>
+</html>
